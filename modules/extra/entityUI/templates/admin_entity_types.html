@@ -5,10 +5,9 @@
 
 </script>
 
-
-<div class="admin-inputs">
-  <div class="admin-header admin-header-padding">Manage entity types</div>
-
+{{#each current}}
+  {{this}}
+  {{/each}}
   <table id="entity-types" style="margin-top: 0px;">
 
   {{#each entityTypes}}
@@ -37,4 +36,3 @@
 
 </table>
   <a class="btn btn-primary" href="/admin/schema/create">Create a new entity type</a>
-</div>

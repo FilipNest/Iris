@@ -15,7 +15,8 @@ var routes = {
     menu: [{
       menuName: "admin_toolbar",
       parent: null,
-      title: "Themes"
+      title: "Themes",
+      weight: 2
     }]
   },
 };
@@ -86,7 +87,7 @@ iris.modules.system.registerHook("hook_form_render__themes", 0, function (thisHo
 
       data.form.push({
         type: "submit",
-        title: "submit"
+        title: thisHook.authPass.t("Submit"),
       });
 
       thisHook.pass(data);
@@ -113,8 +114,9 @@ iris.modules.system.registerHook("hook_form_submit__themes", 0, function (thisHo
 
   fs.writeFileSync(iris.configPath + "/system/active_theme.json", JSON.stringify(output));
 
-  iris.restart(thisHook.authPass.userid, "themes page");
+  iris.restart(thisHook.authPass, {});
 
+  data.restart = true;
   thisHook.pass(data);
 
 });

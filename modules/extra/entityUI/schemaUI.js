@@ -517,7 +517,7 @@ iris.modules.entityUI.registerHook("hook_form_submit__schemafieldDelete", 0, fun
 
     thisHook.pass(function (res) {
 
-      iris.message(thisHook.authPass.userid, thisHook.authPass.t("Field {{name}} saved on entity {{type}}", {name: fieldName, type: entityType}), "success");
+      iris.message(thisHook.authPass.userid, thisHook.authPass.t("Deleted field {{name}} on entity {{type}}", {name: fieldName, type: entityType}), "success");
       // If field belongs to a fieldset, redirect back to fieldset manage page.
       if (parent) {
 
@@ -533,6 +533,11 @@ iris.modules.entityUI.registerHook("hook_form_submit__schemafieldDelete", 0, fun
       }
 
     });
+
+  }, function (fail) {
+
+    iris.log("error", fail);
+    thisHook.fail(data);
 
   });
 
@@ -650,7 +655,7 @@ iris.modules.entityUI.registerHook("hook_form_render__schemaFieldListing", 0, fu
     // Generate table markup. This should be replaced with a handlebars wrapper that generates a table from JSON.
     var tableHtml = '<table>' +
       '<thead>' +
-      '<tr class="admin-header">' +
+      '<tr>' +
       '<th></th>' +
       '<th>' + ap.t('Label') + '</th>' +
       '<th>' + ap.t('Machine name') + '</th>' +
@@ -875,6 +880,12 @@ iris.modules.entityUI.registerHook("hook_form_submit__schemaFieldListing", 0, fu
 
     });
 
+  }, function(fail) {
+
+    iris.log("error", fail);
+    iris.message(thisHook.authPass.userid, thisHook.authPass.t("Failed to save new field"), "danger");
+    thisHook.fail(data);
+
   });
 
 });
@@ -935,6 +946,14 @@ iris.modules.entityUI.registerHook("hook_generate_fieldBasicForm", 0, function (
           "type": "checkboxbuttons",
           "activeClass": "btn-success",
           "title": "Field view permissions",
+          "items": {
+            "enum": Object.keys(iris.modules.auth.globals.roles)
+          }
+        },
+        "edit_permissions": {
+          "type": "checkboxbuttons",
+          "activeClass": "btn-success",
+          "title": "Field edit permissions",
           "items": {
             "enum": Object.keys(iris.modules.auth.globals.roles)
           }

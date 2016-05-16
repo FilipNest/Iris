@@ -3,7 +3,7 @@
   "engines": {
     "node": ">=5.0.0"
   },
-  "version": "2.0.4",
+  "version": "2.0.8",
   "description": "Modular content management and web application framework built with Node.js and MongoDB",
   "main": "iris.js",
   "dependencies": {
@@ -23,7 +23,6 @@
     "mongoose-auto-increment": "^5.0.1",
     "ncp": "^2.0.0",
     "nodemailer": "^1.11.0",
-    "npm": "^3.5.2",
     "path-to-regexp": "^1.2.1",
     "prettydiff": "^1.16.6",
     "sanitize-html": "^1.10.0",
@@ -39,11 +38,13 @@
   "devDependencies": {
     "frisby": "^0.8.5",
     "grunt": "^0.4.5",
+    "grunt-contrib-jshint": "^1.0.0",
     "grunt-jasmine-node-coverage": "^0.4.1",
     "jasmine-node": "^1.14.5",
     "jshint": "^2.9.1"
   },
   "scripts": {
-    "test": "grunt default"
+    "test": "grunt default",
+    "postinstall": "cp example.js ../../example.js"
   }
 }

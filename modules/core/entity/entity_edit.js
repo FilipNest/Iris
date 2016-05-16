@@ -17,6 +17,10 @@
  */
 iris.modules.entity.registerHook("hook_entity_edit", 0, function (thisHook, data) {
 
+  // Store entity state before update
+
+  var previous;
+
   var util = require("util");
 
   if (!data.eid) {
@@ -40,7 +44,7 @@ iris.modules.entity.registerHook("hook_entity_edit", 0, function (thisHook, data
   iris.dbCollections[data.entityType].findOne({
     eid: data.eid
   }, function (err, doc) {
-    
+
     if (err) {
 
       thisHook.fail(iris.error(500, "Database error"));
@@ -58,6 +62,50 @@ iris.modules.entity.registerHook("hook_entity_edit", 0, function (thisHook, data
 
     if (doc) {
 
+      previous = doc;
+
+      previous = previous.toObject();
+
+      delete previous["__v"];
+      delete previous["_id"];
+
+      var type = data.entityType;
+      Object.keys(data).forEach(function (field) {
+
+        if (field !== "entityAuthor" && field !== "entityType" && field !== "eid" && field !== "_id" && field !== "__v") {
+
+          var schemaField = iris.dbCollections[type].schema.tree[field];
+
+          if (schemaField && thisHook.authPass.roles.indexOf("admin") === -1) {
+
+            if (!schemaField.edit_permissions) {
+              iris.log("warn", "field edit without permission attempt ignored for field : " + field + "with value : " + data[field]);
+              delete data[field];
+            } else {
+
+              var canEdit = false;
+              thisHook.authPass.roles.forEach(function (role) {
+
+                if (schemaField.edit_permissions.indexOf(role) !== -1) {
+
+                  canEdit = true;
+                }
+
+              });
+
+              if (!canEdit) {
+                iris.log("warn", "field edit without permission attempt ignored for field : " + field + "with value : " + data[field]);
+                delete data[field];
+
+              }
+
+            }
+
+          }
+
+        }
+
+      });
       data.eid = doc.eid;
       data.entityAuthor = doc.entityAuthor;
 
@@ -70,9 +118,9 @@ iris.modules.entity.registerHook("hook_entity_edit", 0, function (thisHook, data
   //Actual run update function
 
   var runUpdate = function () {
-    
+
     iris.invokeHook("hook_entity_access_edit", thisHook.authPass, null, data).then(function (success) {
-      
+
       iris.invokeHook("hook_entity_access_edit_" + data.entityType, thisHook.authPass, null, data).then(function (success) {
 
         validate();
@@ -123,7 +171,7 @@ iris.modules.entity.registerHook("hook_entity_edit", 0, function (thisHook, data
           preSave(data);
 
         } else {
-          
+
           thisHook.fail(fail);
           return false;
 
@@ -183,14 +231,14 @@ iris.modules.entity.registerHook("hook_entity_edit", 0, function (thisHook, data
 
     delete validatedEntity.eid;
     delete validatedEntity.$$hashKey;
-    
+
     var update = validatedEntity;
 
     update.entityType = data.entityType;
     iris.dbCollections[data.entityType].update(conditions, update, callback);
 
     function callback(err, numAffected) {
-      
+
       if (err) {
 
         thisHook.fail(err);
@@ -202,7 +250,10 @@ iris.modules.entity.registerHook("hook_entity_edit", 0, function (thisHook, data
 
       data.eid = conditions.eid;
 
-      iris.invokeHook("hook_entity_updated", thisHook.authPass, null, data);
+      iris.invokeHook("hook_entity_updated", thisHook.authPass, {
+        previous: previous,
+        new: data
+      }, data);
 
       iris.log("info", data.entityType + " " + conditions.eid + " edited by " + thisHook.authPass.userid);
 
@@ -227,8 +278,7 @@ iris.app.post("/entity/edit/:type/:eid", function (req, res) {
 
       res.status(fail.code).json();
 
-    }
-    else {
+    } else {
       res.status(400).json(fail.toString());
     }
 

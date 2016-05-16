@@ -32,49 +32,14 @@ iris.modules.forms.registerHook("hook_catch_request", 0, function (thisHook, dat
 
     if (typeof data !== "function") {
 
-      if (data.messages && data.messages.length > 0) {
+      thisHook.pass(function (res) {
 
-        thisHook.pass(function (res) {
+        res.json(data);
 
-          res.json({
-            messages: data.messages
-          });
+      });
 
-        });
-
-      } else if (data.callback && data.callback.length > 0) {
-
-        thisHook.pass(function (res) {
-          res.json({
-            'redirect' : data.callback
-          });
-        });
-
-      }
-      else if (data.errors && data.errors.length > 0) {
-
-        thisHook.pass(function (res) {
-
-          res.json({
-            errors: data.errors
-          });
-
-        });
-      }
-      else {
-        // If no callback is supplied provide a basic redirect to the same page
-        var callback = function (res) {
-
-          res.json({
-            redirect: thisHook.context.req.url
-          });
-
-        };
-
-        thisHook.pass(callback);
-      }
-
-    } else {
+    }
+    else {
 
       thisHook.pass(data);
 
@@ -318,7 +283,7 @@ iris.modules.forms.registerHook("hook_frontend_embed__form", 0, function (thisHo
     attributes: {
       "src": "/modules/forms/jsonform/lib/jsonform.js"
     },
-    rank: 3
+    rank: 1
   };
 
   variables.tags.headTags["extrafields"] = {
@@ -326,13 +291,22 @@ iris.modules.forms.registerHook("hook_frontend_embed__form", 0, function (thisHo
     attributes: {
       "src": "/modules/forms/extrafields.js"
     },
-    rank: 1
+    rank: 2
   };
 
   variables.tags.headTags["clientforms"] = {
     type: "script",
     attributes: {
       "src": "/modules/forms/clientforms.js"
+    },
+    rank: 4
+  };
+
+  variables.tags.headTags["formscss"] = {
+    type: "link",
+    attributes: {
+      "href": "/modules/forms/forms.css",
+      "rel": "stylesheet"
     },
     rank: 4
   };
@@ -389,7 +363,8 @@ iris.modules.forms.registerHook("hook_frontend_embed__form", 0, function (thisHo
 
         }
 
-      } else {
+      }
+      else {
 
         form.form.push({
           key: "formToken"
@@ -414,7 +389,8 @@ iris.modules.forms.registerHook("hook_frontend_embed__form", 0, function (thisHo
 
         }
 
-      } else {
+      }
+      else {
 
         form.value.formid = formName;
         form.value.formToken = token;
@@ -425,8 +401,9 @@ iris.modules.forms.registerHook("hook_frontend_embed__form", 0, function (thisHo
       var uniqueId = formName + token;
       output += "<form data-params='" + formParams + "' method='POST' data-formid='" + formName + "' id='" + uniqueId + "' ng-non-bindable ></form> \n";
 
-      output += "<script>iris.forms['" + uniqueId + "'] = { form: " + toSource(form) + ", onComplete: 'formComplete_" + formName + "'}" +
-        "\n if(typeof iris.forms.renderForm == \"function\") iris.forms.renderForm('" + uniqueId + "');</script>";
+      output += "<script>iris.forms['" + uniqueId + "'] = { form: " + toSource(form) + ", onComplete: 'formComplete_" + formName + "'}\n" +
+        "if (iris.forms['" + uniqueId + "'].form && typeof iris.forms['" + uniqueId + "'].form.onSubmit != 'function') {iris.forms['" + uniqueId + "'].form.onSubmit = iris.forms.onSubmit;}\n" +
+        "if(typeof iris.forms.renderForm == \"function\") iris.forms.renderForm('" + uniqueId + "');</script>";
 
       callback(output);
 
@@ -440,98 +417,6 @@ iris.modules.forms.registerHook("hook_frontend_embed__form", 0, function (thisHo
     schema: {},
     form: [],
     value: {}
-  };
-
-  formTemplate.onSubmit = function (errors, values) {
-
-
-    $.ajax({
-      type: "POST",
-      contentType: "application/json",
-      url: window.location,
-      data: JSON.stringify(values),
-      dataType: "json",
-      success: function (data) {
-
-        if (data.errors) {
-
-          $("body").animate({
-            scrollTop: $("[data-formid='" + values.formid + "'").offset().top
-          }, "fast");
-
-          var errorMessages = '';
-
-          // As this may be a second submission attempt, clear all field errors.
-          $('.form-control', $("[data-formid='" + values.formid + "'")).removeClass('error');
-
-          for (var i = 0; i < data.errors.length; i++) {
-
-            errorMessages += "<div class='alert alert-danger'>" + data.errors[i].message + "</div>";
-
-            if (data.errors[i].field) {
-
-              $("input[name=" + data.errors[i].field + ']').addClass('error');
-
-            }
-
-          }
-
-          // If the form-errors div already exists, replace it, otherwise add to top of form.
-          if ($('.form-errors', $("[data-formid='" + values.formid + "'")).length > 0) {
-
-            $('.form-errors', $("[data-formid='" + values.formid + "'")).html(errorMessages);
-
-          } else {
-
-            $("[data-formid='" + values.formid + "'").prepend('<div class="form-errors">' + errorMessages + '</div>');
-
-          }
-
-        } else if (data.messages && data.messages.length > 0) {
-
-          $("body").animate({
-            scrollTop: $("[data-formid='" + values.formid + "'").offset().top
-          }, "fast");
-
-          var messages = '';
-          data.messages.forEach(function (obj) {
-
-            messages += "<div class='alert alert-" + obj.type + "'>" + obj.message + "</div>";
-
-          });
-
-          // If the form-errors div already exists, replace it, otherwise add to top of form.
-          if ($('.form-messages', $("[data-formid='" + values.formid + "'")).length > 0) {
-
-            $('.form-messages', $("[data-formid='" + values.formid + "'")).html(messages);
-
-          } else {
-
-            $("[data-formid='" + values.formid + "'").prepend('<div class="form-messages">' + messages + '</div>');
-
-          }
-
-        } else if (data.redirect) {
-
-          window.location.href = data.redirect;
-
-        } else {
-
-          if (data && data.indexOf("doctype") === -1) {
-
-            window.location.href = data;
-
-          } else {
-
-            window.location.href = window.location.href;
-
-          }
-
-        }
-
-      }
-    });
-
   };
 
   iris.invokeHook("hook_form_render", thisHook.authPass, {

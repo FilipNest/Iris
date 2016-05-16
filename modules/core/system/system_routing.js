@@ -12,7 +12,6 @@ var fs = require('fs');
 var routes = {
   admin : {
     title: "Admin",
-    description: "Auto-generate tokenised url paths for entities.",
     permissions: ["can access admin pages"],
   },
   logs : {
@@ -22,7 +21,8 @@ var routes = {
     "menu": [{
       menuName: "admin_toolbar",
       parent: null,
-      title: "Logs"
+      title: "Logs",
+      weight: 7
     }]
   },
   structure : {
@@ -32,7 +32,19 @@ var routes = {
     "menu": [{
       menuName: "admin_toolbar",
       parent: null,
-      title: "Structure"
+      title: "Structure",
+      weight:1
+    }]
+  },
+  config : {
+    title: "Config",
+    description: "Settings and administration of core and contributed functionality.",
+    permissions: ["can access admin pages"],
+    "menu": [{
+      menuName: "admin_toolbar",
+      parent: null,
+      title: "Config",
+      weight: 4
     }]
   },
   restart: {
@@ -42,7 +54,8 @@ var routes = {
     "menu": [{
       menuName: "admin_toolbar",
       parent: null,
-      title: "Restart"
+      title: "Restart",
+      weight: 6
     }]
   }
 };
@@ -154,9 +167,28 @@ iris.route.get("/admin/structure", routes.structure, function (req, res) {
 });
 
 /**
+ * Admin page callback: Config items.
+ */
+iris.route.get("/admin/config", routes.config, function (req, res) {
+
+  var menu = iris.modules.menu.globals.getBaseLinks(req.url);
+  menu.name = req.irisRoute.options.title;
+
+  iris.modules.frontend.globals.parseTemplateFile(["baselinks"], ['admin_wrapper'], {
+    menu: menu,
+  }, req.authPass, req).then(function (success) {
+
+    res.send(success);
+
+  });
+
+});
+
+/**
  * Admin page callback: Restart server.
  */
 iris.route.get("/admin/restart", routes.restart, function (req, res) {
+
 
   iris.modules.frontend.globals.parseTemplateFile(["admin_restart"], ['admin_wrapper'], {}, req.authPass, req).then(function (success) {
 

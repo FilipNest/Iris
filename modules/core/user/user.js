@@ -29,20 +29,13 @@ var routes = {
     title: "One-time login",
     description: "Reset your lost password"
   },
-  list: {
-    title: "User list",
-    "menu": [{
-      menuName: "admin_toolbar",
-      parent: "/admin/users",
-      title: "User list"
-    }]
-  },
   users: {
     title: "Users",
     "menu": [{
       menuName: "admin_toolbar",
       parent: null,
-      title: "Users"
+      title: "Users",
+      weight: 5
     }]
   },
   logout: {
@@ -50,7 +43,8 @@ var routes = {
       weight: 5,
       menuName: "admin_toolbar",
       parent: null,
-      title: "Logout"
+      title: "Logout",
+      weight: 8
     }]
   }
 };
@@ -142,19 +136,6 @@ iris.route.get("/admin/users", routes.users, function (req, res) {
   });
 
 });
-
-iris.route.get("/admin/users/list", routes.list, function (req, res) {
-
-  if (iris.modules.entityUI) {
-
-    res.redirect("/admin/entitylist/user");
-
-  } else {
-    iris.modules.frontend.globals.displayErrorPage(404, req, res);
-  }
-
-});
-
 
 /**
  * Page callback: User page.
@@ -554,7 +535,7 @@ iris.modules.user.registerHook("hook_form_submit__set_first_user", 0, function (
   var ap = thisHook.authPass;
 
   iris.dbCollections["user"].count({}, function (err, count) {
-    if (count === 0) {
+    if (!count || count === 0) {
 
       var newUser = {
 
@@ -615,20 +596,24 @@ iris.modules.user.registerHook("hook_form_submit__set_first_user", 0, function (
             iris.saveConfigSync(enabled, "system", "enabled_modules", true);
 
           }
+
+          if (enabled) {
+
+            console.log('restarting');
+            iris.restart(thisHook.authPass, {});
+
+          }
+
           iris.message(uid, ap.t("Welcome to your new Iris site!"), "info");
-          thisHook.pass(function (res) {
-            res.json("/admin");
-            if (enabled) {
-              console.log('restarting');
-              iris.message(uid, ap.t("Don't worry, that short glitch was the server restarting to install the Standard profile."), "info");
-              iris.restart(uid, ap.t("UI modules enabled."));
-            }
-          });
+          data.callback = '/admin';
+          data.restart = true;
+
+          thisHook.pass(data);
         });
 
       }, function (fail) {
 
-        iris.log(fail);
+        iris.log("error", fail);
         thisHook.fail(data);
 
       });

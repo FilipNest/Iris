@@ -40,6 +40,16 @@ var routes = {
   deleteBlock : {
     title: "Delete block",
     permissions: ["can access admin pages"],
+  },
+  menu: {
+    "title" : "Blocks administration",
+    "description": "Adminster block types and content",
+    "permissions": ["can access admin pages"],
+    "menu": [{
+      menuName: "admin_toolbar",
+      parent: "/admin/structure",
+      title: "Blocks"
+    }]
   }
 }
 
@@ -341,7 +351,7 @@ iris.modules.blocks.registerHook("hook_form_render", 0, function (thisHook, data
 
     // Check if a config file has already been saved for this block. If so, load in the current settings.
 
-    iris.readConfig("blocks/" + formTitle.split("_")[1], thisHook.context.params[1]).then(function (output) {
+    iris.readConfig("blocks/" + formTitle.split("_")[1], thisHook.context.params).then(function (output) {
 
       data.value = output;
 
@@ -372,21 +382,21 @@ iris.modules.blocks.registerHook("hook_form_render__blockDeleteForm", 0, functio
     data.schema = {};
 
   }
-
+  
   data.schema["blockTitle"] = {
     type: "hidden",
-    default: thisHook.context.params[2]
+    default: thisHook.context.params.blockID
   };
 
   data.schema["blockType"] = {
     type: "hidden",
-    default: thisHook.context.params[1]
+    default: thisHook.context.params.blockType
   };
 
-  data.form = [
+  data.form = ["blockType", "blockTitle",
     {
       "type": "help",
-      "helpvalue": "<div class='alert alert-danger'>Are you sure you want to delete this form?</div>"
+      "helpvalue": "<div class='alert alert-danger'>Are you sure you want to delete this block?</div>"
     },
     {
       "type": "button",
@@ -401,7 +411,7 @@ iris.modules.blocks.registerHook("hook_form_render__blockDeleteForm", 0, functio
 });
 
 iris.modules.blocks.registerHook("hook_form_submit__blockDeleteForm", 0, function (thisHook, data) {
-
+  
   if (iris.modules.blocks.globals.blocks[thisHook.context.params.blockType] && iris.modules.blocks.globals.blocks[thisHook.context.params.blockType][thisHook.context.params.blockTitle]) {
 
     delete iris.modules.blocks.globals.blocks[thisHook.context.params.blockType][thisHook.context.params.blockTitle];
@@ -466,13 +476,7 @@ iris.modules.blocks.registerHook("hook_form_submit", 0, function (thisHook, data
 
 // Admin page routing handler
 
-iris.route.get("/admin/blocks", {
-  "menu": [{
-    menuName: "admin_toolbar",
-    parent: "/admin/structure",
-    title: "Blocks"
-  }]
-}, function (req, res) {
+iris.route.get("/admin/blocks", routes.menu, function (req, res) {
 
   // If not admin, present 403 page
 

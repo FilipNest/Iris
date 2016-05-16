@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/modules/system/admin.css" />
   <script type="text/javascript" src="/modules/system/bootstrap/js/bootstrap.min.js"></script>
   [[[tags headTags,"-jQuery"]]]
+
 </head>
 
 <body class="{{bodyClass}}">
@@ -21,7 +22,9 @@
   <section class="col-sm-10 col-sm-offset-2" id="main_content">
 
     <h1>{{req.irisRoute.options.title}}</h1>
-    {{{iris_messages}}} 
+    <p class="center">{{req.irisRoute.options.description}}</p>
+
+    {{{iris_messages}}}
     [[[tabs]]]
     [[[MAINCONTENT]]]
 
