@@ -172,3 +172,54 @@ iris.modules.entity.registerHook("hook_entity_deleted", 0, function (thisHook, e
   thisHook.pass(entity);
 
 });
+
+// Live update 
+
+iris.modules.entity.globals.entityFeeds = {};
+
+iris.modules.entity.registerSocketListener("entityfeeds", function (socket, data) {
+
+  Object.keys(data).forEach(function (entityFeed) {
+
+    if (!iris.modules.entity.globals.entityFeeds[entityFeed]) {
+
+      iris.modules.entity.globals.entityFeeds[entityFeed] = {
+        query: data[entityFeed],
+        sockets: {}
+      };
+
+    }
+
+    // Add socket userid
+
+    iris.modules.entity.globals.entityFeeds[entityFeed].sockets[socket.id] = Date.now();
+
+  })
+
+})
+
+iris.modules.entity.registerHook("hook_socket_disconnected", 0, function (thisHook, data) {
+
+  Object.keys(iris.modules.entity.globals.entityFeeds).forEach(function (entityFeed) {
+
+    var feed = iris.modules.entity.globals.entityFeeds[entityFeed];
+
+    var sockets = feed.sockets;
+            
+    if (feed.sockets[thisHook.context.socket.id]) {
+      
+      delete feed.sockets[thisHook.context.socket.id];
+
+    }
+        
+    if (!Object.keys(feed.sockets).length) {
+      
+      delete iris.modules.entity.globals.entityFeeds[entityFeed];
+
+    }
+
+  })
+
+  thisHook.pass(data);
+
+})

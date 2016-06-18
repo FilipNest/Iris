@@ -38,7 +38,7 @@ iris.sendSocketMessage = function (userids, message, data) {
 
     var connected_socket = iris.socketServer.clients().connected;
     Object.keys(connected_socket).forEach(function (client) {
-      if(!connected_socket[client].authPass){
+      if (!connected_socket[client].authPass) {
         connected_socket[client].emit(message, data);
       }
     });
@@ -179,8 +179,17 @@ iris.socketServer.on("connection", function (socket) {
 
     }
 
+    if (!socket.authPass) {
+
+      socket.authPass = "anon";
+
+    }
+
     // Run hook for disconnected socket.
-    iris.invokeHook("hook_socket_disconnected", socket.authPass, socket.authPass, Date.now());
+    iris.invokeHook("hook_socket_disconnected", socket.authPass, {
+      socket: socket,
+      date: Date.now()
+    }, Date.now());
 
   });
 

@@ -28,6 +28,27 @@ irisReady(function () {
 
     iris.socketreceiver = io(iris.server);
 
+    // Loop over queries and send them to the server
+
+    if (iris.fetched) {
+
+      var queries = {};
+
+      Object.keys(iris.fetched).forEach(function (entityList) {
+
+        var query = iris.fetched[entityList].query;
+        var queryTitle = JSON.stringify(query);
+
+        queries[queryTitle] = query;
+
+      })
+
+      iris.socketreceiver.emit("entityfeeds", queries);
+
+    }
+
+    iris.socketreceiver.emit("fetchQueries", iris.fetched)
+
     iris.socketreceiver.on('entityCreate', function (data) {
 
       if (data) {
@@ -548,5 +569,5 @@ iris.liveLoadUpdate = function () {
 document.addEventListener('entityListUpdate', function (e) {
 
   iris.liveLoadUpdate();
-  
+
 }, false);
