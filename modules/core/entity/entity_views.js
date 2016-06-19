@@ -102,7 +102,7 @@ iris.modules.entity.registerHook("hook_entity_created", 0, function (thisHook, e
  * This hook is run when an entity is updated/edited; useful for live updates or keeping track of changes
  */
 iris.modules.entity.registerHook("hook_entity_updated", 0, function (thisHook, entity) {
-
+  
   for (var authUser in iris.modules.auth.globals.userList) {
 
     iris.modules.auth.globals.userList[authUser].getAuthPass().then(function (authPass) {
@@ -192,7 +192,10 @@ iris.modules.entity.registerSocketListener("entityfeeds", function (socket, data
 
     // Add socket userid
 
-    iris.modules.entity.globals.entityFeeds[entityFeed].sockets[socket.id] = Date.now();
+    iris.modules.entity.globals.entityFeeds[entityFeed].sockets[socket.id] = {
+      connected: Date.now(),
+      authPass: socket.authPass
+    };
 
   })
 
@@ -205,15 +208,15 @@ iris.modules.entity.registerHook("hook_socket_disconnected", 0, function (thisHo
     var feed = iris.modules.entity.globals.entityFeeds[entityFeed];
 
     var sockets = feed.sockets;
-            
+
     if (feed.sockets[thisHook.context.socket.id]) {
-      
+
       delete feed.sockets[thisHook.context.socket.id];
 
     }
-        
+
     if (!Object.keys(feed.sockets).length) {
-      
+
       delete iris.modules.entity.globals.entityFeeds[entityFeed];
 
     }
@@ -223,3 +226,92 @@ iris.modules.entity.registerHook("hook_socket_disconnected", 0, function (thisHo
   thisHook.pass(data);
 
 })
+
+var feedCheck = function (entity, callback) {
+
+  // Loop over entity feeds to see if it fits in any of them
+
+  var entityFeeds = [],
+    validFeeds = [];
+
+  Object.keys(iris.modules.entity.globals.entityFeeds).forEach(function (entityFeed) {
+
+    var feed = iris.modules.entity.globals.entityFeeds[entityFeed];
+
+    if (feed.query.entities.indexOf(entity.entityType) !== -1) {
+
+      entityFeeds.push(JSON.parse(JSON.stringify(feed)));
+
+    }
+
+  })
+
+  var counter = 0;
+  var complete = function () {
+
+    counter += 1;
+
+    if (counter === entityFeeds.length) {
+
+      var sockets = {};
+
+      // validFeeds contains all the fields
+
+      validFeeds.forEach(function (entityFeed) {
+
+        Object.keys(entityFeed.sockets).forEach(function (socketid) {
+
+          if (!sockets[socketid]) {
+
+            sockets[socketid] = {
+              socket: entityFeed.sockets[socketid],
+              feeds: []
+            };
+
+          }
+
+          sockets[socketid].feeds.push(entityFeed.query);
+
+        })
+
+      })
+
+      callback(sockets);
+
+    }
+
+  }
+
+  entityFeeds.forEach(function (entityfeed) {
+
+    if (!entityfeed.query.queries) {
+
+      entityfeed.query.queries = [];
+
+    }
+
+    entityfeed.query.queries.push({
+      "field": "eid",
+      "operator": "is",
+      "value": entity.eid
+    })
+
+    iris.invokeHook("hook_entity_fetch", "root", null, entityfeed.query).then(function (entities) {
+
+      if (entities && entities.length) {
+
+        validFeeds.push(entityfeed)
+
+        complete();
+
+      }
+
+    }, function (fail) {
+
+      complete();
+
+    })
+
+  });
+
+}
