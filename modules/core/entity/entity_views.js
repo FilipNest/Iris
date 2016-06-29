@@ -63,33 +63,11 @@ iris.modules.entity.registerHook("hook_frontend_embed__entity", 0, function (thi
  */
 iris.modules.entity.registerHook("hook_entity_created", 0, function (thisHook, entity) {
 
-  for (var authUser in iris.modules.auth.globals.userList) {
+   processUpdate(entity, "entityCreate", function () {
 
-    iris.modules.auth.globals.userList[authUser].getAuthPass().then(function (authPass) {
+    thisHook.pass(entity);
 
-      iris.invokeHook("hook_entity_view", authPass, null, entity).then(function (data) {
-
-        iris.sendSocketMessage([authPass.userid], "entityCreate", data);
-
-      });
-
-    }, function (fail) {
-
-      thisHook.pass(fail);
-
-    });
-  }
-
-  iris.invokeHook("hook_entity_view", {
-    "userid": "anon",
-    "roles": ["anonymous"]
-  }, null, entity).then(function (data) {
-
-    iris.sendSocketMessage(["anon"], "entityCreate", data);
-
-  });
-
-  thisHook.pass(entity);
+  })
 
 });
 
@@ -102,34 +80,12 @@ iris.modules.entity.registerHook("hook_entity_created", 0, function (thisHook, e
  * This hook is run when an entity is updated/edited; useful for live updates or keeping track of changes
  */
 iris.modules.entity.registerHook("hook_entity_updated", 0, function (thisHook, entity) {
-  
-  for (var authUser in iris.modules.auth.globals.userList) {
 
-    iris.modules.auth.globals.userList[authUser].getAuthPass().then(function (authPass) {
+  processUpdate(entity, "entityUpdate", function () {
 
-      iris.invokeHook("hook_entity_view", authPass, null, entity).then(function (data) {
+    thisHook.pass(entity);
 
-        iris.sendSocketMessage([authPass.userid], "entityUpdate", data);
-
-      });
-
-    }, function (fail) {
-
-      thisHook.pass(fail);
-
-    });
-  }
-
-  iris.invokeHook("hook_entity_view", {
-    "userid": "anon",
-    "roles": ["anonymous"]
-  }, null, entity).then(function (data) {
-
-    iris.sendSocketMessage(["anon"], "entityUpdate", data);
-
-  });
-
-  thisHook.pass(entity);
+  })
 
 });
 
@@ -143,37 +99,108 @@ iris.modules.entity.registerHook("hook_entity_updated", 0, function (thisHook, e
  */
 iris.modules.entity.registerHook("hook_entity_deleted", 0, function (thisHook, entity) {
 
-  for (var authUser in iris.modules.auth.globals.userList) {
+  processUpdate(entity, "entityUpdate", function () {
 
-    iris.modules.auth.globals.userList[authUser].getAuthPass().then(function (authPass) {
+    thisHook.pass(entity);
 
-      iris.invokeHook("hook_entity_view", authPass, null, entity).then(function (data) {
-
-        iris.sendSocketMessage([authPass.userid], "entityDelete", data);
-
-      });
-
-    }, function (fail) {
-
-      thisHook.pass(fail);
-
-    });
-  }
-
-  iris.invokeHook("hook_entity_view", {
-    "userid": "anon",
-    "roles": ["anonymous"]
-  }, null, entity).then(function (data) {
-
-    iris.sendSocketMessage(["anon"], "entityDelete", data);
-
-  });
-
-  thisHook.pass(entity);
+  })
 
 });
 
 // Live update 
+
+// Filter entities by checking auth
+
+var processUpdate = function (entity, socketMessageName, callback) {
+
+  feedCheck(entity, function (sockets) {
+
+    if (!sockets) {
+
+      callback();
+
+    } else {
+
+      var subscribers = [];
+
+      Object.keys(sockets).forEach(function (socketID) {
+
+        var socket = sockets[socketID];
+
+        var authPass = socket.socket.authPass;
+
+        if (!authPass) {
+
+          authPass = "anon";
+
+        }
+
+        subscribers.push({
+          authPass: "anon",
+          socket: socketID
+        });
+
+      })
+
+      var pushCounter = 0;
+
+      var done = function () {
+
+        pushCounter += 1;
+
+        if (pushCounter === subscribers.length) {
+
+          callback();
+
+        }
+
+      }
+
+      subscribers.forEach(function (subscriber) {
+
+        checkEntity(entity, subscriber.authPass).then(function (pass) {
+
+          iris.socketServer.sockets.sockets[subscriber.socket].emit(socketMessageName, pass);
+
+          done();
+
+        }, function (fail) {
+
+          done();
+
+        })
+
+      })
+
+    }
+
+  })
+
+}
+
+var checkEntity = function (entity, authPass) {
+
+  return new Promise(function (resolve, reject) {
+
+    iris.invokeHook("hook_entity_view", authPass, null, entity).then(function (data) {
+
+      resolve(data);
+
+      if (!data) {
+
+        reject(data);
+
+      }
+
+    }, function (fail) {
+
+      reject(fail);
+
+    });
+
+  })
+
+}
 
 iris.modules.entity.globals.entityFeeds = {};
 
