@@ -39,6 +39,7 @@ irisReady(function () {
         var query = iris.fetched[entityList].query;
         var queryTitle = JSON.stringify(query);
 
+        query.variable = entityList;
         queries[queryTitle] = query;
 
       })
@@ -63,7 +64,7 @@ irisReady(function () {
 
       if (data) {
 
-        iris.checkQuery(data, true);
+        iris.checkQuery(data);
 
       }
 
@@ -79,125 +80,49 @@ irisReady(function () {
 
   // Function for checking if a query is active
 
-  iris.checkQuery = function (entity, updating) {
+  iris.checkQuery = function (update) {
 
-    // Run through all queries
+    // Check if it fits in any database queries
 
     if (iris.fetched) {
 
-      var updated = [];
+      Object.keys(iris.fetched).forEach(function (feedVariable) {
 
-      var inserted = [];
+        update.feeds.forEach(function (feed) {
 
-      Object.keys(iris.fetched).forEach(function (loader) {
+          if (feed.variable === feedVariable) {
 
-        var outcome = true;
+            // Update local entity database
 
-        var loader = iris.fetched[loader],
-          query = loader.query,
-          entityTypes = query.entities,
-          queries = query.queries;
+            iris.fetchedEntities[update.entity.entityType][update.entity.eid] = update.entity;
 
-        // Check if entity type fits in this query
+            // Loop over entities to see if it fits
 
-        if (entityTypes.indexOf(entity.entityType) !== -1) {
+            var updating;
 
-          // check if there is a queries object
+            iris.fetched[feedVariable].entities.forEach(function (entity, index) {
 
-          if (!queries || !queries.length) {
+              // Check if it's an update or an insert
 
-            queries = [];
+              if (entity.entityType === update.entity.entityType && entity.eid === update.entity.eid) {
 
-          }
+                updating = true;
 
-          queries.forEach(function (query) {
-
-            //Process query based on operator
-
-            switch (query.operator) {
-
-              case "IS":
-
-                if (JSON.stringify(entity[query.field]) !== JSON.stringify(query.compare)) {
-
-                  outcome = false;
-
-                }
-                break;
-              case "IN":
-
-                if (entity[query.field].indexOf(query.compare) === -1) {
-
-                  outcome = false;
-
-                }
-                break;
-
-              case "CONTAINS":
-
-                if (entity[query.field].toString().toLowerCase().indexOf(query.compare.toString().toLowerCase()) === -1) {
-
-                  outcome = false;
-
-                }
-                break;
-            }
-
-          });
-
-          // Check outcome and add/update entity where appropriate
-
-          if (outcome) {
-
-            // Check if entity already exists in entity list. If so it must be an update
-
-            if (iris.fetchedEntities[entity.entityType] && iris.fetchedEntities[entity.entityType][entity.eid]) {
-
-              // Loop over already loaded entities properties and update (can't do a straight = update as that would wipe any references)
-
-              Object.keys(entity).forEach(function (property) {
-
-                iris.fetchedEntities[entity.entityType][entity.eid][property] = entity[property];
-
-              });
-
-              // Loop over entities in loader and check it's not already there as this can happen with more than one similar loader on the page
-
-              var present;
-
-              loader.entities.forEach(function (currentEntity) {
-
-                if (currentEntity.eid === entity.eid) {
-
-                  present = true;
-
-                }
-
-              });
-
-              if (!present) {
-
-                loader.entities.push(iris.fetchedEntities[entity.entityType][entity.eid]);
-              }
-
-              updated.push(entity);
-
-            } else {
-
-              if (!iris.fetchedEntities[entity.entityType]) {
-
-                iris.fetchedEntities[entity.entityType] = {};
+                iris.fetched[feedVariable].entities[index] = update.entity;
 
               }
 
-              iris.fetchedEntities[entity.entityType][entity.eid] = entity;
-              loader.entities.push(iris.fetchedEntities[entity.entityType][entity.eid]);
+            });
 
-              inserted.push(entity);
+            if (!updating) {
+
+              iris.fetched[feedVariable].entities.push(update.entity);
 
             }
 
-            // Check if sort is present and run it if so
+            var loader = iris.fetched[feedVariable];
+            
+            // Sort and limit
 
             var sort = function (property, direction) {
 
@@ -264,33 +189,13 @@ irisReady(function () {
 
           }
 
-        }
+        })
 
-      });
-
-      if (updating && (!updated.length && !inserted.length)) {
-
-        // Nothing was updated, means this entity doesn't belong anymore. So delete it.
-
-        iris.deleteEntity(entity);
-
-      }
-
-      // Send event
-
-      var detail = {
-        entities: {}
-      };
-
-      detail.entities[entity.entityType] = [entity];
-
-      detail.event = 'update';
-
-      iris.entityListUpdate.detail = detail;
-
-      document.dispatchEvent(iris.entityListUpdate);
+      })
 
     }
+    
+    document.dispatchEvent(iris.entityListUpdate);
 
   };
 
@@ -556,8 +461,14 @@ iris.liveLoadUpdate = function () {
   for (i = 0; i < liveLoaders.length; i += 1) {
 
     var parent = liveLoaders[i];
+    
+    var templateLogic = parent.querySelector(".iris-live-load-source").getAttribute("data-iris-live-load-template");
+    
+    // ticks to double quotes
+    
+    templateLogic = templateLogic.split("``").join('"');
 
-    var template = Handlebars.compile(parent.querySelector(".iris-live-load-source").getAttribute("data-iris-live-load-template"));
+    var template = Handlebars.compile(templateLogic);
     var child = parent.querySelector(".iris-live-load-output");
 
     child.innerHTML = template(entityContainers);

@@ -63,7 +63,7 @@ iris.modules.entity.registerHook("hook_frontend_embed__entity", 0, function (thi
  */
 iris.modules.entity.registerHook("hook_entity_created", 0, function (thisHook, entity) {
 
-   processUpdate(entity, "entityCreate", function () {
+  processUpdate(entity, "entityCreate", function () {
 
     thisHook.pass(entity);
 
@@ -136,8 +136,9 @@ var processUpdate = function (entity, socketMessageName, callback) {
         }
 
         subscribers.push({
-          authPass: "anon",
-          socket: socketID
+          authPass: authPass,
+          socket: socketID,
+          feeds: socket.feeds
         });
 
       })
@@ -158,9 +159,14 @@ var processUpdate = function (entity, socketMessageName, callback) {
 
       subscribers.forEach(function (subscriber) {
 
-        checkEntity(entity, subscriber.authPass).then(function (pass) {
+        checkEntity(entity, subscriber.authPass).then(function (entity) {
 
-          iris.socketServer.sockets.sockets[subscriber.socket].emit(socketMessageName, pass);
+          var package = {
+            entity: entity,
+            feeds: subscriber.feeds
+          }
+
+          iris.socketServer.sockets.sockets[subscriber.socket].emit(socketMessageName, package);
 
           done();
 
@@ -207,6 +213,13 @@ iris.modules.entity.globals.entityFeeds = {};
 iris.modules.entity.registerSocketListener("entityfeeds", function (socket, data) {
 
   Object.keys(data).forEach(function (entityFeed) {
+    
+    var query = JSON.parse(entityFeed);
+    
+    var clientFeedVariable = query.variable;
+    delete query.variable;
+    
+    entityFeed = JSON.stringify(query);
 
     if (!iris.modules.entity.globals.entityFeeds[entityFeed]) {
 
@@ -223,6 +236,16 @@ iris.modules.entity.registerSocketListener("entityfeeds", function (socket, data
       connected: Date.now(),
       authPass: socket.authPass
     };
+
+    // Add name of entity feed. Allow multiple
+
+    if (!iris.modules.entity.globals.entityFeeds[entityFeed].sockets[socket.id].feedNames) {
+
+      iris.modules.entity.globals.entityFeeds[entityFeed].sockets[socket.id].feedNames = {};
+
+    }
+
+    iris.modules.entity.globals.entityFeeds[entityFeed].sockets[socket.id].feedNames[clientFeedVariable] = {};
 
   })
 
