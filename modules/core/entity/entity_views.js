@@ -98,12 +98,11 @@ iris.modules.entity.registerHook("hook_entity_updated", 0, function (thisHook, e
  * This hook is run when an entity is deleted; useful for live updates or keeping track of changes
  */
 iris.modules.entity.registerHook("hook_entity_deleted", 0, function (thisHook, entity) {
-
-  processUpdate(entity, "entityDelete", function () {
-
-    thisHook.pass(entity);
-
-  })
+  
+  iris.sendSocketMessage(["*"], "entityDelete", {
+    eid: entity.eid,
+    entityType: entity.entityType
+  });
 
 });
 
@@ -213,12 +212,12 @@ iris.modules.entity.globals.entityFeeds = {};
 iris.modules.entity.registerSocketListener("entityfeeds", function (socket, data) {
 
   Object.keys(data).forEach(function (entityFeed) {
-    
+
     var query = JSON.parse(entityFeed);
-    
+
     var clientFeedVariable = query.variable;
     delete query.variable;
-    
+
     entityFeed = JSON.stringify(query);
 
     if (!iris.modules.entity.globals.entityFeeds[entityFeed]) {

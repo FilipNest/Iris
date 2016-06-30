@@ -200,7 +200,7 @@ irisReady(function () {
   };
 
   iris.deleteEntity = function (entity) {
-
+    
     // First delete from main entity store if present
 
     if (iris.fetchedEntities && iris.fetchedEntities[entity.entityType] && iris.fetchedEntities[entity.entityType][entity.eid]) {
@@ -222,7 +222,7 @@ irisReady(function () {
           // Loop over all the entities loaded in the loader
 
           loader.entities.forEach(function (loaderEntity, loaderEntityIndex) {
-
+            
             if (loaderEntity.eid.toString() === entity.eid.toString()) {
 
               loader.entities.splice(loaderEntityIndex, 1);
@@ -252,6 +252,7 @@ irisReady(function () {
     document.dispatchEvent(iris.entityListUpdate);
 
   };
+  
 });
 
 iris.entityListUpdate = new Event('entityListUpdate');
