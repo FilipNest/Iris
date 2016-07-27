@@ -484,7 +484,15 @@ iris.modules.forms.registerHook("hook_frontend_embed__form", 0, function (thisHo
 
       var respond = function (staticForm) {
 
-        callback(staticForm + output);
+        if (staticForm) {
+
+          callback(staticForm + output);
+
+        } else {
+
+          callback(output);
+
+        }
 
       }
 
@@ -495,14 +503,25 @@ iris.modules.forms.registerHook("hook_frontend_embed__form", 0, function (thisHo
         src: [core, jquery, underscore, jsonform, extrafields, staticFormSetupCode],
         onload: function (window) {
 
-          window.$('#' + uniqueId).jsonForm(window.form);
+          try {
 
-          var formOutput = window.$("[data-static-form]")[0].outerHTML;
+            window.$('#' + uniqueId).jsonForm(window.form);
 
-          respond(formOutput);
+            var formOutput = window.$("[data-static-form]")[0].outerHTML;
 
-        }
-      });
+            respond(formOutput);
+
+          } catch (e) {
+
+            iris.log("error", e);
+            respond(null);
+
+          }
+
+        },
+
+      })
+
     });
 
   };
