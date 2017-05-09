@@ -118,6 +118,34 @@ iris.modules.entity.registerHook("hook_entity_fetch", 0, function (thisHook, fet
 
       }
 
+      if (fieldQuery.operator.toLowerCase().indexOf("in") !== -1) {
+
+        queryItem[fieldQuery["field"]] = {
+          $in: fieldQuery.value
+        };
+
+        // Check if negative
+
+        if (fieldQuery.operator.toLowerCase().indexOf("not") === -1) {
+
+          query.$and.push(queryItem);
+
+        } else {
+
+          negativeQueryItem = {};
+
+          negativeQueryItem[Object.keys(queryItem)[0]] = {
+
+            $ne: queryItem[Object.keys(queryItem)[0]]
+
+          };
+
+          query.$and.push(negativeQueryItem);
+
+        }
+
+      }
+
       if (fieldQuery.operator.toLowerCase().indexOf("gt") !== -1) {
 
         queryItem[fieldQuery["field"]] = {
@@ -291,7 +319,7 @@ iris.modules.entity.registerHook("hook_entity_fetch", 0, function (thisHook, fet
 
         iris.invokeHook("hook_entity_view", thisHook.authPass, null, entities[_id]).then(function (viewChecked) {
 
-          if (viewChecked === undefined) {
+          if (viewChecked.access === false) {
             no("permission denied");
             return false;
           }
@@ -401,7 +429,7 @@ iris.modules.entity.registerHook("hook_entity_fetch", 0, function (thisHook, fet
 
     }, function (fail) {
 
-      thisHook.fail("Fetch failed");
+      thisHook.fail("Fetch failed: " + fail);
 
     });
 
@@ -510,7 +538,7 @@ iris.modules.entity.registerHook("hook_entity_view", 0, function (thisHook, enti
   if (!viewAny && !(isOwn && viewOwn)) {
 
     //Can't view any of this type, delete it
-    entity = undefined;
+    entity.access = false;
 
   }
 
