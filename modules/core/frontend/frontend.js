@@ -599,7 +599,7 @@ iris.modules.frontend.registerHook("hook_system_ready", 1, function (thisHook, d
 
 
   });
-  
+
   thisHook.pass(data);
 
 });
@@ -793,38 +793,95 @@ iris.modules.frontend.globals.parseTemplateFile = function (templateName, wrappe
 
   return new Promise(function (yes, no) {
 
-    var parseTemplateFile = function (currentTemplateName, parameters, callback) {
+    // Run hook in case someone wants to override this one completely (for caching for example). If output is falsey carry on, else return the output and ignore rest.
 
-      iris.modules.frontend.globals.findTemplate(currentTemplateName).then(function (template) {
+    iris.invokeHook("hook_frontend_template_parse_start", authPass || "root", {
+        parameters: parameters,
+        template: templateName,
+        wrapper: wrapperTemplateName
+      },
+      null).then(function (output) {
 
-        callback({
-          html: template,
-          variables: parameters
+      if (output) {
+
+        return yes(output);
+
+      }
+
+      var parseTemplateFile = function (currentTemplateName, parameters, callback) {
+
+        iris.modules.frontend.globals.findTemplate(currentTemplateName).then(function (template) {
+
+          callback({
+            html: template,
+            variables: parameters
+          });
+
+        }, function (fail) {
+
+          no(fail);
+
         });
 
-      }, function (fail) {
+      };
 
-        no(fail);
+      if (wrapperTemplateName) {
 
-      });
+        parseTemplateFile(wrapperTemplateName, parameters, function (wrapperOutput) {
 
-    };
+          parseTemplateFile(templateName, wrapperOutput.variables, function (innerOutput) {
 
-    if (wrapperTemplateName) {
+            var output = wrapperOutput.html.split("[[[MAINCONTENT]]]").join(innerOutput.html);
 
-      parseTemplateFile(wrapperTemplateName, parameters, function (wrapperOutput) {
+            iris.invokeHook("hook_frontend_template", authPass || "root", {
+              html: output,
+              vars: innerOutput.variables
+            }, {
+              html: output,
+              vars: innerOutput.variables
+            }).then(function (output) {
 
-        parseTemplateFile(templateName, wrapperOutput.variables, function (innerOutput) {
+              // Call hook marking template parse completion
 
-          var output = wrapperOutput.html.split("[[[MAINCONTENT]]]").join(innerOutput.html);
+              iris.invokeHook("hook_frontend_template_parse_end", authPass || "root", {
+                  parameters: parameters,
+                  template: templateName,
+                  wrapper: wrapperTemplateName,
+                  output: output.html
+                },
+                null);
 
+              yes(unEscape(output.html));
+
+            }, function (fail) {
+
+              no(fail);
+
+            });
+
+          });
+
+        });
+
+      } else {
+
+        parseTemplateFile(templateName, parameters, function (output) {
+          
           iris.invokeHook("hook_frontend_template", authPass || "root", {
-            html: output,
-            vars: innerOutput.variables
+            html: output.html,
+            vars: output.variables
           }, {
-            html: output,
-            vars: innerOutput.variables
+            html: output.html,
+            vars: output.variables
           }).then(function (output) {
+
+            iris.invokeHook("hook_frontend_template_parse_end", authPass || "root", {
+                parameters: parameters,
+                template: templateName,
+                wrapper: wrapperTemplateName,
+                output: output.html
+              },
+              null);
 
             yes(unEscape(output.html));
 
@@ -836,31 +893,9 @@ iris.modules.frontend.globals.parseTemplateFile = function (templateName, wrappe
 
         });
 
-      });
+      }
 
-    } else {
-
-      parseTemplateFile(templateName, parameters, function (output) {
-
-        iris.invokeHook("hook_frontend_template", authPass || "root", {
-          html: output.html,
-          vars: output.variables
-        }, {
-          html: output.html,
-          vars: output.variables
-        }).then(function (output) {
-
-          yes(unEscape(output.html));
-
-        }, function (fail) {
-
-          no(fail);
-
-        });
-
-      });
-
-    }
+    })
 
   });
 
